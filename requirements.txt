@@ -1,0 +1,8 @@
+numpy
+opencv-python
+matplotlib
+pillow
+pillow-heif
+scikit-learn
+tensorflow
+scipy
