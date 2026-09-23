@@ -11,21 +11,23 @@ iPhone 13 Pro Max, iPhone 17 Pro; 17 images each):
 
 All methods use the **same 25 folds** of repeated stratified 5-fold cross-validation. Every preprocessing step (standardisation, PCA, validation split) is fitted on the training folds only. Pairwise differences are tested with the corrected resampled t-test (Nadeau & Bengio) with Holm adjustment. Two control experiments measure the effect of the JPEG/HEIC native-format difference: same-format device pairs, and re-encoding every image with a common JPEG encoder.
 
-## Results (mean accuracy over 25 folds, 95% CI)
+## Results (mean accuracy over 25 folds, 95% CI corrected for fold overlap)
 
-| Method | Accuracy |
-|---|---|
-| DCT/JPEG artifact features | 0.947 [0.921, 0.974] |
-| ResNet-18 (ImageNet, fine-tuned) | 0.799 [0.754, 0.844] |
-| Compact CNN, augmentation + early stopping | 0.520 [0.445, 0.595] |
-| PRNU-inspired residual features | 0.493 [0.463, 0.524] |
-| Compact CNN, 5 epochs | 0.442 [0.390, 0.494] |
+| Method | Accuracy | 95% CI |
+|---|---|---|
+| DCT/JPEG artifact features | 0.947 | 0.876–1.000 |
+| ResNet-18 (ImageNet, fine-tuned) | 0.799 | 0.679–0.919 |
+| Compact CNN, augmentation + early stopping | 0.520 | 0.318–0.722 |
+| PRNU-inspired residual features | 0.493 | 0.411–0.575 |
+| Compact CNN, 5 epochs | 0.442 | 0.302–0.581 |
+
+The DCT/JPEG method is significantly better than the PRNU-inspired method and both compact CNNs. Its difference from ResNet-18 is not significant after Holm adjustment (p = 0.146). Re-encoding every image with a common JPEG encoder lowers the DCT/JPEG accuracy to 0.859.
 
 ![Accuracy](figures/accuracy_cv.png)
 
 ## Data
 
-Download the dataset from Zenodo: https://zenodo.org/records/17640511. Place it as `data/<device>/` (`iphone13promax`, `iphone17pro`, `redminote10s`, `samsungs24`), or set `SCI_DATA=/path/to/data`.
+Download the dataset from Zenodo: https://doi.org/10.5281/zenodo.17640511. Place it as `data/<device>/` (`iphone13promax`, `iphone17pro`, `redminote10s`, `samsungs24`), or set `SCI_DATA=/path/to/data`.
 
 ## Reproduce
 
@@ -48,4 +50,4 @@ Everything runs on CPU. The scripts can be resumed: `extract_features.py` and `r
 |---|---|
 | `src/` | the four pipeline scripts and `folds.json` |
 | `results/` | `traditional.json`, `cnn/` (one file per model and fold), `cnn_all.json`, `final.json` (all reported statistics) |
-| `figures/` | figures used in the paper |
+| `figures/` | figures used in the paper (PDF) with PNG previews |

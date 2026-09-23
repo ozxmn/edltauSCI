@@ -33,9 +33,14 @@ J = 25; n_te = np.mean([len(f["test"]) for f in FOLDS["folds"]]); n_tr = np.mean
 
 
 def summary(a):
-    a = np.asarray(a); m = a.mean(); s = a.std(ddof=1)
-    h = stats.t.ppf(0.975, J - 1) * s / np.sqrt(J)
-    return dict(mean=m, std=s, ci=[m - h, m + h])
+    """Mean, SD and 95% CI over the J folds. The interval uses the
+    Nadeau-Bengio variance correction (1/J + n_test/n_train) so that it is
+    consistent with the corrected t-test; the uncorrected interval is kept
+    for reference as ci_uncorrected."""
+    a = np.asarray(a); m = a.mean(); s = a.std(ddof=1); tq = stats.t.ppf(0.975, J - 1)
+    h = tq * s * np.sqrt(1 / J + n_te / n_tr)
+    h0 = tq * s / np.sqrt(J)
+    return dict(mean=m, std=s, ci=[m - h, min(1.0, m + h)], ci_uncorrected=[m - h0, m + h0])
 
 
 def corrected_t(a, b):
@@ -93,51 +98,89 @@ out["shapes"] = N["shapes"]
 json.dump(out, open("results/final.json", "w"), indent=1, default=float)
 
 # ---------------- figures ----------------
-import os
+# Sized for the SNmult text width (345 pt = 4.79 in) and saved as vector PDF
+# with embedded TrueType fonts; PNG copies are written for the README.
+TEXTWIDTH = 345 / 72
+plt.rcParams.update({"font.family": "sans-serif",
+                     "font.sans-serif": ["Liberation Sans", "Arial", "Helvetica", "DejaVu Sans"],
+                     "font.size": 8, "axes.titlesize": 8, "axes.labelsize": 8,
+                     "xtick.labelsize": 7.5, "ytick.labelsize": 7.5, "legend.fontsize": 7.5,
+                     "pdf.fonttype": 42, "ps.fonttype": 42, "axes.linewidth": 0.6,
+                     "xtick.major.width": 0.6, "ytick.major.width": 0.6})
 os.makedirs("figures", exist_ok=True)
-plt.rcParams.update({"font.size": 9})
-cols = ["#4C78A8", "#E45756", "#B0B0B0", "#72B7B2", "#54A24B"]
-fig, ax = plt.subplots(figsize=(6.2, 3.4))
-means = [out["methods"][n]["mean"] for n in names]
-lo = [means[i] - out["methods"][n]["ci"][0] for i, n in enumerate(names)]
-hi = [out["methods"][n]["ci"][1] - means[i] for i, n in enumerate(names)]
-ax.bar(range(5), means, yerr=[lo, hi], capsize=4, color=cols)
-for i, n in enumerate(names):
-    ax.scatter(np.full(25, i) + np.random.default_rng(i).uniform(-0.25, 0.25, 25), M[n]["fold_acc"], s=6, c="k", alpha=0.35, zorder=3)
-ax.axhline(0.25, ls="--", c="gray", lw=1); ax.text(-0.45, 0.265, "chance (0.25)", fontsize=7, ha="left", color="gray")
-ax.set_xticks(range(5)); ax.set_xticklabels([n.replace(" (", "\n(") for n in names], fontsize=7.5)
-ax.set_ylabel("Accuracy"); ax.set_ylim(0, 1.05)
-fig.tight_layout(); fig.savefig("figures/accuracy_cv.png", dpi=300); plt.close(fig)
 
-short = ["iPh13PM", "iPh17P", "Redmi", "S24"]
+
+def save(fig, name):
+    fig.savefig(f"figures/{name}.pdf")
+    fig.savefig(f"figures/{name}.png", dpi=300)
+    plt.close(fig)
+
+
+# Fig. 1: processing pipeline
+from matplotlib.patches import FancyBboxPatch
+fig, ax = plt.subplots(figsize=(TEXTWIDTH, 1.0))
+steps = ["68 images,\n4 devices", "25 folds\n(repeated\nstratified\n5-fold CV)", "Method-\nspecific\npreprocessing",
+         "Features and\nclassifier,\nfitted on\ntraining folds", "Predicted\ndevice for\nheld-out\nimages"]
+n = len(steps); w, gap = 0.176, (0.985 - 5 * 0.176) / 4
+for k, t in enumerate(steps):
+    x0 = 0.0075 + k * (w + gap)
+    ax.add_patch(FancyBboxPatch((x0, 0.08), w, 0.84, boxstyle="round,pad=0,rounding_size=0.03",
+                                fc="white", ec="black", lw=0.7, transform=ax.transAxes))
+    ax.text(x0 + w / 2, 0.5, t, ha="center", va="center", fontsize=7.5, linespacing=1.15, transform=ax.transAxes)
+    if k < n - 1:
+        ax.annotate("", xy=(x0 + w + gap - 0.004, 0.5), xytext=(x0 + w + 0.004, 0.5), xycoords="axes fraction",
+                    arrowprops=dict(arrowstyle="-|>", lw=0.8, color="black", mutation_scale=8))
+ax.axis("off"); fig.subplots_adjust(0.005, 0.02, 0.995, 0.98)
+save(fig, "pipeline")
+
+# Fig. 2: cross-validated accuracy
+fig, ax = plt.subplots(figsize=(TEXTWIDTH, 2.35))
+means = [out["methods"][n_]["mean"] for n_ in names]
+lo = [means[i] - out["methods"][n_]["ci"][0] for i, n_ in enumerate(names)]
+hi = [out["methods"][n_]["ci"][1] - means[i] for i, n_ in enumerate(names)]
+ax.bar(range(5), means, width=0.62, color="0.72", edgecolor="black", lw=0.6)
+ax.errorbar(range(5), means, yerr=[lo, hi], fmt="none", ecolor="black", capsize=3, lw=0.8)
+for i, n_ in enumerate(names):
+    ax.scatter(np.full(25, i) + np.random.default_rng(i).uniform(-0.22, 0.22, 25), M[n_]["fold_acc"],
+               s=5, c="black", alpha=0.45, lw=0, zorder=3)
+ax.axhline(0.25, ls="--", c="0.35", lw=0.7)
+ax.text(-0.45, 0.27, "chance level", fontsize=7, ha="left", color="0.3")
+labels = ["DCT/JPEG", "PRNU-inspired", "CNN,\n5 epochs", "CNN, aug. +\nearly stopping", "ResNet-18\n(ImageNet)"]
+ax.set_xticks(range(5)); ax.set_xticklabels(labels)
+ax.set_ylabel("Accuracy"); ax.set_ylim(0, 1.02); ax.spines[["top", "right"]].set_visible(False)
+fig.tight_layout(pad=0.3); save(fig, "accuracy_cv")
+
+# Fig. 3: pooled confusion matrices (a-d)
+short = ["iPh 13", "iPh 17", "Redmi", "S24"]
 sel = ["DCT/JPEG", "PRNU-inspired", "CNN (scratch, aug.+ES)", "ResNet-18 (ImageNet)"]
-fig, axes = plt.subplots(2, 2, figsize=(6.4, 6.0))
-for ax, n in zip(axes.flat, sel):
-    cm = np.array(out["methods"][n]["cm"], float); cm /= cm.sum(1, keepdims=True)
-    ax.imshow(cm, cmap="Blues", vmin=0, vmax=1)
+fig, axes = plt.subplots(2, 2, figsize=(TEXTWIDTH, TEXTWIDTH * 0.86))
+for k, (ax, n_) in enumerate(zip(axes.flat, sel)):
+    cm = np.array(out["methods"][n_]["cm"], float); cm /= cm.sum(1, keepdims=True)
+    ax.imshow(cm, cmap="Greys", vmin=0, vmax=1.15)
     for i in range(4):
         for j in range(4):
-            ax.text(j, i, f"{cm[i,j]:.2f}", ha="center", va="center", fontsize=7, color="white" if cm[i, j] > 0.6 else "black")
-    ax.set_xticks(range(4)); ax.set_xticklabels(short, fontsize=7, rotation=30); ax.set_yticks(range(4)); ax.set_yticklabels(short, fontsize=7)
-    ax.set_title(n, fontsize=8.5); ax.set_xlabel("Predicted", fontsize=7.5)
-[a.set_ylabel("True", fontsize=7.5) for a in axes[:,0]]
-fig.tight_layout(); fig.savefig("figures/confusion.png", dpi=300); plt.close(fig)
+            ax.text(j, i, f"{cm[i, j]:.2f}", ha="center", va="center", fontsize=7,
+                    color="white" if cm[i, j] > 0.55 else "black")
+    ax.set_xticks(range(4)); ax.set_xticklabels(short); ax.set_yticks(range(4)); ax.set_yticklabels(short)
+    ax.set_xlabel("Predicted device"); ax.set_ylabel("True device")
+    ax.text(-0.42, 1.04, "abcd"[k], transform=ax.transAxes, fontsize=9, fontweight="bold", va="bottom")
+fig.tight_layout(pad=0.4, h_pad=1.2, w_pad=1.0); save(fig, "confusion")
 
-fig, ax = plt.subplots(figsize=(6.6, 3.2))
-groups = [("4-class", out["format"]["cv_native"], {k: v["mean"] for k, v in out["format"]["cv_harmonized"].items()})]
-labels_g, nat_j, har_j, nat_p, har_p = [], [], [], [], []
-labels_g.append("All 4 devices"); nat_j.append(N["cv"]["jpeg"]["mean"]); har_j.append(N["cv"]["jpeg_harmonized"]["mean"])
-nat_p.append(N["cv"]["prnu"]["mean"]); har_p.append(N["cv"]["prnu_harmonized"]["mean"])
-for p, d in N["pairs"].items():
-    labels_g.append("iPhone 13 PM vs 17 Pro\n(both HEIC)" if "iphone" in p else "Redmi vs S24\n(both JPEG)")
-    nat_j.append(d["jpeg"]["mean"]); har_j.append(d["jpeg_harmonized"]["mean"]); nat_p.append(d["prnu"]["mean"]); har_p.append(d["prnu_harmonized"]["mean"])
-x = np.arange(3); w = 0.2
-ax.bar(x - 1.5 * w, nat_j, w, color="#4C78A8", label="DCT/JPEG, native")
-ax.bar(x - 0.5 * w, har_j, w, color="#9ECAE9", label="DCT/JPEG, re-encoded q90")
-ax.bar(x + 0.5 * w, nat_p, w, color="#E45756", label="PRNU-insp., native")
-ax.bar(x + 1.5 * w, har_p, w, color="#FF9D98", label="PRNU-insp., re-encoded q90")
-ax.plot([-0.45, 0.45], [0.25, 0.25], "--", c="gray", lw=1); ax.plot([0.55, 2.45], [0.5, 0.5], "--", c="gray", lw=1)
-ax.set_xticks(x); ax.set_xticklabels(labels_g, fontsize=7.5); ax.set_ylim(0, 1.05); ax.set_ylabel("Accuracy")
-ax.legend(fontsize=6.5, ncol=4, loc="lower center", bbox_to_anchor=(0.5, 1.0), frameon=False)
-fig.tight_layout(); fig.savefig("figures/format.png", dpi=300); plt.close(fig)
+# Fig. 4: format control experiments
+fig, ax = plt.subplots(figsize=(TEXTWIDTH, 2.4))
+groups = ["All four devices", "iPhone 13 Pro Max vs.\niPhone 17 Pro (HEIC)", "Redmi Note 10S vs.\nGalaxy S24 (JPEG)"]
+vals = {k: [N["cv"][k]["mean"]] + [N["pairs"][p][k]["mean"] for p in N["pairs"]]
+        for k in ["jpeg", "jpeg_harmonized", "prnu", "prnu_harmonized"]}
+style = {"jpeg": dict(color="0.25", label="DCT/JPEG, native files"),
+         "jpeg_harmonized": dict(color="white", hatch="////", label="DCT/JPEG, common re-encoding"),
+         "prnu": dict(color="0.72", label="PRNU-inspired, native files"),
+         "prnu_harmonized": dict(color="white", hatch="....", label="PRNU-inspired, common re-encoding")}
+x = np.arange(3); w = 0.19
+for off, k in zip([-1.5, -0.5, 0.5, 1.5], style):
+    ax.bar(x + off * w, vals[k], w, edgecolor="black", lw=0.6, **style[k])
+ax.plot([-0.45, 0.45], [0.25, 0.25], "--", c="0.35", lw=0.7); ax.plot([0.55, 2.45], [0.5, 0.5], "--", c="0.35", lw=0.7)
+ax.set_xticks(x); ax.set_xticklabels(groups); ax.set_ylim(0, 1.02); ax.set_ylabel("Accuracy")
+ax.spines[["top", "right"]].set_visible(False)
+ax.legend(ncol=2, loc="lower center", bbox_to_anchor=(0.5, 1.0), frameon=False, handlelength=1.6, columnspacing=1.2)
+fig.tight_layout(pad=0.3); save(fig, "format")
 print("figures saved")
