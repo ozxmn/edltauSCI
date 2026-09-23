@@ -1,8 +1,9 @@
 numpy
+scipy
 opencv-python
 matplotlib
 pillow
 pillow-heif
 scikit-learn
-tensorflow
-scipy
+torch
+torchvision
