@@ -26,8 +26,10 @@ import torch, torch.nn as nn, torch.nn.functional as F
 torch.set_num_threads(max(1, os.cpu_count()))
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-CACHE = os.path.join(ROOT, "cache")  # written by extract_features.py
-RES = os.path.join(ROOT, "results", "cnn")
+ORIENT = os.environ.get("SCI_ORIENT", "exif")
+SUFFIX = "" if ORIENT == "exif" else "_stored"
+CACHE = os.path.join(ROOT, "cache" + SUFFIX)  # written by extract_features.py
+RES = os.path.join(ROOT, "results", "cnn" + SUFFIX)
 os.makedirs(RES, exist_ok=True)
 
 FOLDS = json.load(open(os.path.join(HERE, "folds.json")))
@@ -187,7 +189,7 @@ def run_resnet(fold, T):
 if __name__ == "__main__" and sys.argv[1] == "collect":
     import glob
     rs = [json.load(open(f)) for f in sorted(glob.glob(os.path.join(RES, "*.json")))]
-    json.dump(rs, open(os.path.join(ROOT, "results", "cnn_all.json"), "w")); print(len(rs), "fold results collected"); sys.exit()
+    json.dump(rs, open(os.path.join(ROOT, "results", f"cnn_all{SUFFIX}.json"), "w")); print(len(rs), "fold results collected"); sys.exit()
 
 if __name__ == "__main__":
     name = sys.argv[1]

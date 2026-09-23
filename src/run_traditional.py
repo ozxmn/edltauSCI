@@ -15,7 +15,8 @@ from sklearn.decomposition import PCA
 from sklearn.model_selection import RepeatedStratifiedKFold
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
-F = np.load(os.path.join(ROOT, "cache", "features.npz"))  # from extract_features.py
+SUFFIX = "" if os.environ.get("SCI_ORIENT", "exif") == "exif" else "_stored"
+F = np.load(os.path.join(ROOT, "cache" + SUFFIX, "features.npz"))  # from extract_features.py
 FOLDS = json.load(open(os.path.join(HERE, "folds.json")))
 y = np.array(FOLDS["y"]); classes = FOLDS["classes"]
 assert [classes.index(l) for l in F["labels"]] == y.tolist()
@@ -63,5 +64,5 @@ for pname, (ca, cb) in {"iphone13_vs_iphone17 (HEIC)": (0, 1), "redmi_vs_samsung
     out["pairs"][pname] = res
 
 os.makedirs(os.path.join(ROOT, "results"), exist_ok=True)
-json.dump(out, open(os.path.join(ROOT, "results", "traditional.json"), "w"))
-print("saved results/traditional.json")
+json.dump(out, open(os.path.join(ROOT, "results", f"traditional{SUFFIX}.json"), "w"))
+print(f"saved results/traditional{SUFFIX}.json")

@@ -48,7 +48,7 @@ def corrected_t(a, b):
     d = np.asarray(a) - np.asarray(b)
     v = d.var(ddof=1)
     if v == 0:
-        return np.inf, 0.0
+        return (0.0, 1.0) if d.mean() == 0 else (np.inf, 0.0)
     t = d.mean() / np.sqrt((1 / J + n_te / n_tr) * v)
     return t, 2 * stats.t.sf(abs(t), J - 1)
 
@@ -95,6 +95,20 @@ for k in ["jpeg", "prnu"]:
     out["format"]["native_vs_harmonized_" + k] = dict(t=float(t), p=float(p))
     print("native vs harmonized", k, round(N["cv"][k]["mean"], 3), round(N["cv"][k + "_harmonized"]["mean"], 3), "p=", round(p, 4))
 out["shapes"] = N["shapes"]
+
+# Orientation control: same pipelines on the stored (not EXIF-rotated) pixels
+if os.path.exists("results/traditional_stored.json") and os.path.exists("results/cnn_all_stored.json"):
+    NS = json.load(open("results/traditional_stored.json")); CS = json.load(open("results/cnn_all_stored.json"))
+    MS = {"DCT/JPEG": NS["cv"]["jpeg"]["fold_acc"], "PRNU-inspired": NS["cv"]["prnu"]["fold_acc"]}
+    for key, name in [("scratch_orig", "CNN (scratch, 5 ep.)"), ("scratch_improved", "CNN (scratch, aug.+ES)"),
+                      ("resnet18", "ResNet-18 (ImageNet)")]:
+        MS[name] = [r["acc"] for r in sorted([r for r in CS if r["model"] == key], key=lambda r: r["fold"])]
+    out["orientation"] = {}
+    for name in names:
+        t, p = corrected_t(MS[name], M[name]["fold_acc"])
+        out["orientation"][name] = dict(stored=summary(MS[name]), upright=summary(M[name]["fold_acc"]),
+                                        diff=float(np.mean(MS[name]) - np.mean(M[name]["fold_acc"])), t=float(t), p=float(p))
+        print(f"orientation {name:24s} stored={np.mean(MS[name]):.3f} upright={np.mean(M[name]['fold_acc']):.3f} p={p:.3g}")
 json.dump(out, open("results/final.json", "w"), indent=1, default=float)
 
 # ---------------- figures ----------------

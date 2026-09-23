@@ -12,14 +12,18 @@ done 68/68, after which cache/features.npz is written.
 import os, sys, time
 import numpy as np
 import cv2
-from PIL import Image
+from PIL import Image, ImageOps
 import pillow_heif
 from scipy.ndimage import gaussian_filter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # dataset root with one sub-folder per device (Zenodo record 17640511)
 DATA = os.environ.get("SCI_DATA", os.path.join(ROOT, "data"))
-CACHE = os.path.join(ROOT, "cache")
+# Images are rotated upright according to their EXIF orientation tag (only the
+# Samsung files carry a non-trivial tag). SCI_ORIENT=stored keeps the stored
+# pixel orientation instead (orientation control experiment).
+ORIENT = os.environ.get("SCI_ORIENT", "exif")
+CACHE = os.path.join(ROOT, "cache" if ORIENT == "exif" else "cache_stored")
 os.makedirs(CACHE, exist_ok=True)
 BUDGET = float(sys.argv[1]) if len(sys.argv) > 1 else float("inf")
 
@@ -30,6 +34,8 @@ def load_image(path):
         img = Image.frombytes(heif.mode, heif.size, heif.data, "raw")
     else:
         img = Image.open(path)
+        if ORIENT == "exif":
+            img = ImageOps.exif_transpose(img)
     return np.array(img.convert("RGB"))
 
 
@@ -112,4 +118,4 @@ if __name__ == "__main__":
                             shapes=np.stack([x["shape"] for x in d]), jpeg=np.stack([x["jpeg"] for x in d]),
                             prnu=np.stack([x["prnu"] for x in d]), jpeg_h=np.stack([x["jpeg_h"] for x in d]),
                             prnu_h=np.stack([x["prnu_h"] for x in d]))
-        print("wrote cache/features.npz")
+        print("wrote", os.path.join(CACHE, "features.npz"))
