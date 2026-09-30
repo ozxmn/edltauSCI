@@ -158,7 +158,6 @@ for i, n_ in enumerate(names):
     ax.scatter(np.full(25, i) + np.random.default_rng(i).uniform(-0.22, 0.22, 25), M[n_]["fold_acc"],
                s=5, c="black", alpha=0.45, lw=0, zorder=3)
 ax.axhline(0.25, ls="--", c="0.35", lw=0.7)
-ax.text(-0.45, 0.27, "chance level", fontsize=7, ha="left", color="0.3")
 labels = ["DCT/JPEG", "PRNU-inspired", "CNN,\n5 epochs", "CNN, aug. +\nearly stopping", "ResNet-18\n(ImageNet)"]
 ax.set_xticks(range(5)); ax.set_xticklabels(labels)
 ax.set_ylabel("Accuracy"); ax.set_ylim(0, 1.02); ax.spines[["top", "right"]].set_visible(False)

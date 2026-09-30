@@ -19,8 +19,9 @@ from scipy.ndimage import gaussian_filter
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # dataset root with one sub-folder per device (Zenodo record 17640511)
 DATA = os.environ.get("SCI_DATA", os.path.join(ROOT, "data"))
-# Images are rotated upright according to their EXIF orientation tag (only the
-# Samsung files carry a non-trivial tag). SCI_ORIENT=stored keeps the stored
+# JPEG images are rotated upright according to their EXIF orientation tag
+# (the Samsung files are stored in landscape with tag 6; the HEIC decoder
+# applies the iPhone rotation itself). SCI_ORIENT=stored keeps the stored JPEG
 # pixel orientation instead (orientation control experiment).
 ORIENT = os.environ.get("SCI_ORIENT", "exif")
 CACHE = os.path.join(ROOT, "cache" if ORIENT == "exif" else "cache_stored")
