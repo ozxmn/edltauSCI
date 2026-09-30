@@ -9,7 +9,7 @@ iPhone 13 Pro Max, iPhone 17 Pro; 17 images each):
 - **PRNU-inspired noise residuals**: a Wiener-style residual and a linear SVM
 - **CNNs**: a compact CNN trained from scratch (5 epochs, or with augmentation and early stopping), and an ImageNet-pretrained ResNet-18 (fine-tuned)
 
-All methods use the **same 25 folds** of repeated stratified 5-fold cross-validation. Every preprocessing step (standardisation, PCA, validation split) is fitted on the training folds only. Pairwise differences are tested with the corrected resampled t-test (Nadeau & Bengio) with Holm adjustment. Two control experiments measure the effect of the JPEG/HEIC native-format difference: same-format device pairs, and re-encoding every image with a common JPEG encoder.
+All methods use the **same 25 folds** of repeated stratified 5-fold cross-validation. Every preprocessing step (standardization, PCA, validation split) is fitted on the training folds only. Pairwise differences are tested with the corrected resampled t-test (Nadeau & Bengio) with Holm adjustment. Two control experiments measure the effect of the JPEG/HEIC native-format difference: same-format device pairs, and re-encoding every image with a common JPEG encoder.
 
 ## Results (mean accuracy over 25 folds, 95% CI corrected for fold overlap)
 
@@ -21,7 +21,7 @@ All methods use the **same 25 folds** of repeated stratified 5-fold cross-valida
 | Compact CNN, augmentation + early stopping | 0.411 | 0.235–0.588 |
 | Compact CNN, 5 epochs | 0.356 | 0.247–0.464 |
 
-The DCT/JPEG method is significantly more accurate than every other configuration (Holm-adjusted p ≤ 0.003). Re-encoding every image with a common JPEG encoder lowers its accuracy to 0.859. All images are rotated upright according to their EXIF orientation tag; the Samsung files are stored rotated, and without this correction ResNet-18 reaches 0.799 by partly exploiting the orientation cue (`SCI_ORIENT=stored` reproduces that control).
+The DCT/JPEG method is significantly more accurate than every other configuration (Holm-adjusted p ≤ 0.003). Re-encoding every image with a common JPEG encoder lowers its accuracy to 0.859. All images are rotated upright according to their EXIF orientation tag; the Samsung files are stored rotated, and without this correction ResNet-18 reaches 0.799 instead of 0.623, which suggests that it partly exploits the orientation cue (`SCI_ORIENT=stored` reproduces that control).
 
 ![Accuracy](figures/accuracy_cv.png)
 
